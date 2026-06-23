@@ -12,8 +12,7 @@ const departmentSchema = new mongoose.Schema({
     // Points to the staff member who leads this team
     headOfDepartment: { 
         type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User' ,
-        required: true
+        ref: 'User' 
     }
 }, { timestamps: true });
 

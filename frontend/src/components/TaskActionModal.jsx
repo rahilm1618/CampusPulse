@@ -23,7 +23,7 @@ const TaskActionModal = ({ incident, onClose, onUpdate }) => {
     const formData = new FormData();
     formData.append("status", status);
     if (proofImage) {
-      formData.append("image", proofImage); 
+      formData.append("afterFix", proofImage); 
     }
 
     try {
@@ -33,7 +33,8 @@ const TaskActionModal = ({ incident, onClose, onUpdate }) => {
       onUpdate(); // Refresh parent dashboard
       onClose();
     } catch (error) {
-      toast.error("Update failed");
+      console.error(error.response?.data);
+      toast.error(error.response?.data?.message || "Update failed");
     } finally {
       setLoading(false);
     }
@@ -89,7 +90,11 @@ const TaskActionModal = ({ incident, onClose, onUpdate }) => {
                     onChange={(e) => setStatus(e.target.value)}
                     className="w-full mt-1 p-3 bg-gray-900 text-white rounded border border-gray-600 focus:border-blue-500 outline-none"
                 >
-                    <option value="OPEN">Open (Not Started)</option>
+                    {incident.status === 'REOPENED' ? (
+                        <option value="REOPENED">Reopened (Needs Attention)</option>
+                    ) : (
+                        <option value="OPEN">Open (Not Started)</option>
+                    )}
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="RESOLVED">Resolved (Done)</option>
                 </select>

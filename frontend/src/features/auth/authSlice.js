@@ -72,6 +72,36 @@ export const loginUser = createAsyncThunk(
 );
 
 /* ===========================
+   REGISTER THUNK
+   Registers the user, then auto-logs them in.
+=========================== */
+
+export const registerUser = createAsyncThunk(
+  'auth/registerUser',
+  async ({ name, email, password, role }, { dispatch, rejectWithValue }) => {
+    try {
+      // 1. Register the user on the backend
+      await axios.post('/auth/register', { name, email, password, role });
+
+      // 2. Auto-login: dispatch the existing loginUser thunk
+      //    This gives us proper tokens + user object in Redux state
+      const loginResult = await dispatch(loginUser({ email, password }));
+
+      // 3. If login failed after register, surface that error
+      if (loginUser.rejected.match(loginResult)) {
+        return rejectWithValue('Registered but auto-login failed. Please login manually.');
+      }
+
+      return loginResult.payload; // { accessToken, user }
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Registration failed'
+      );
+    }
+  }
+);
+
+/* ===========================
    SLICE
 =========================== */
 
@@ -86,6 +116,7 @@ const authSlice = createSlice({
       state.token = null;
       state.error = null;
     },
+    
   },
   extraReducers: (builder) => {
     builder
@@ -99,6 +130,19 @@ const authSlice = createSlice({
         state.user = action.payload.user;
       })
       .addCase(loginUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Register cases
+      .addCase(registerUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(registerUser.fulfilled, (state, action) => {
+        state.loading = false;
+        // user & token are already set by the loginUser thunk inside register
+      })
+      .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

@@ -2,8 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-// 1. Import your real pages here
+// Pages
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 import StudentDashboard from "./pages/StudentDashboard"; 
 import StaffDashboard from "./pages/StaffDashboard";   
 import AdminDashboard from "./pages/AdminDashboard";  
@@ -11,23 +12,22 @@ import AdminDashboard from "./pages/AdminDashboard";
 import PrivateRoute from "./components/PrivateRoute";
 
 /* ===========================
-   Placeholder Components (Keep these only if you haven't created the files yet)
+   Placeholder Pages (to be built in later phases)
 =========================== */
 
+import SecurityDashboard from "./pages/SecurityDashboard";
 
-const SecurityDashboard = () => (
-  <h1 className="text-white text-center mt-20 text-3xl">Security Dashboard (Coming Soon)</h1>
+const HODDashboard = () => (
+  <h1 className="text-white text-center mt-20 text-3xl">HOD Dashboard (Coming Soon)</h1>
 );
 
-
-
-/* ===========================
-   Unauthorized Page
-=========================== */
 const Unauthorized = () => (
-  <h1 className="text-red-500 text-center mt-20 text-3xl">
-    403 – Unauthorized
-  </h1>
+  <div className="flex h-screen items-center justify-center bg-gradient-animated">
+    <div className="glass-strong p-10 rounded-2xl text-center">
+      <h1 className="text-4xl font-bold text-red-500 mb-2">403</h1>
+      <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>You don't have permission to access this page.</p>
+    </div>
+  </div>
 );
 
 /* ===========================
@@ -40,15 +40,15 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
 
-          {/* Student Routes */}
-          <Route element={<PrivateRoute allowedRoles={['Student']} />}>
-            {/* This now points to the imported component, not the placeholder */}
+          {/* Student & Faculty share the same dashboard */}
+          <Route element={<PrivateRoute allowedRoles={['Student', 'Faculty']} />}>
             <Route path="/student-dashboard" element={<StudentDashboard />} />
           </Route>
 
-          {/* Staff Routes (Maintenance only) */}
+          {/* Staff Routes (Maintenance) */}
           <Route element={<PrivateRoute allowedRoles={['Maintenance']} />}>
             <Route path="/staff-dashboard" element={<StaffDashboard />} />
           </Route>
@@ -56,6 +56,11 @@ function App() {
           {/* Security Routes */}
           <Route element={<PrivateRoute allowedRoles={['Security']} />}>
             <Route path="/security-dashboard" element={<SecurityDashboard />} />
+          </Route>
+
+          {/* HOD Routes */}
+          <Route element={<PrivateRoute allowedRoles={['HOD']} />}>
+            <Route path="/hod-dashboard" element={<HODDashboard />} />
           </Route>
 
           {/* Admin Routes */}

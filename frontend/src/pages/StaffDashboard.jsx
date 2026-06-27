@@ -4,7 +4,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../features/auth/authSlice";
 import { useNavigate } from "react-router-dom";
 import TaskActionModal from "../components/TaskActionModal";
-import ChatInterface from "../components/ChatInterface"; // Reusing the chat!
+import ChatInterface from "../components/ChatInterface";
+import PanicButton from "../components/PanicButton"; // Reusing the chat!
 import { FaClipboardCheck, FaTools, FaStar, FaExclamationTriangle } from "react-icons/fa";
 
 const StaffDashboard = () => {
@@ -174,7 +175,6 @@ const StaffDashboard = () => {
           />
       )}
 
-      {/* Modal Popup */}
       {selectedTask && (
         <TaskActionModal 
           incident={selectedTask} 
@@ -183,6 +183,8 @@ const StaffDashboard = () => {
         />
       )}
 
+      {/* Floating Panic Button */}
+      <PanicButton onPanicSuccess={fetchDashboardData} />
     </div>
   );
 };

@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import ReportIncidentForm from "../components/ReportIncidentForm";
 import ChatInterface from "../components/ChatInterface"; // <--- Import the Chat Component
+import PanicButton from "../components/PanicButton";
+import RatingModal from "../components/RatingModal";
 
 const StudentDashboard = () => {
     const { user } = useSelector((state) => state.auth);
@@ -13,6 +15,7 @@ const StudentDashboard = () => {
     const navigate = useNavigate();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [ratingModalIncident, setRatingModalIncident] = useState(null);
     const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard' or 'chat'
     const [incidents, setIncidents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -145,6 +148,7 @@ const StudentDashboard = () => {
                                             <th className="p-4">Date</th>
                                             <th className="p-4">Status</th>
                                             <th className="p-4">Assigned To</th>
+                                            <th className="p-4 text-center">Rating</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-700">
@@ -165,6 +169,29 @@ const StudentDashboard = () => {
                                                 </td>
                                                 <td className="p-4 text-sm text-gray-400">
                                                     {incident.assignedTo?.name || "Unassigned"}
+                                                </td>
+                                                <td className="p-4 text-center">
+                                                    {incident.status === 'RESOLVED' ? (
+                                                        !incident.rating || incident.rating === 0 ? (
+                                                            <button 
+                                                                onClick={() => setRatingModalIncident(incident)}
+                                                                className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg font-bold transition-colors"
+                                                            >
+                                                                Rate Resolution
+                                                            </button>
+                                                        ) : (
+                                                            <div className="flex justify-center text-yellow-400">
+                                                                {[...Array(incident.rating)].map((_, i) => (
+                                                                    <span key={i}>★</span>
+                                                                ))}
+                                                                {[...Array(5 - incident.rating)].map((_, i) => (
+                                                                    <span key={i} className="text-gray-600">★</span>
+                                                                ))}
+                                                            </div>
+                                                        )
+                                                    ) : (
+                                                        <span className="text-gray-600 text-sm">-</span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}
@@ -190,6 +217,18 @@ const StudentDashboard = () => {
                     onSuccess={fetchIncidents} // Pass refresh function instead of reloading page
                 />
             )}
+
+            {/* Rating Modal */}
+            {ratingModalIncident && (
+                <RatingModal 
+                    incident={ratingModalIncident}
+                    onClose={() => setRatingModalIncident(null)}
+                    onSuccess={fetchIncidents}
+                />
+            )}
+
+            {/* Floating Panic Button */}
+            <PanicButton onPanicSuccess={fetchIncidents} />
         </div>
     );
 };

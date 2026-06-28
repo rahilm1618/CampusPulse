@@ -7,7 +7,8 @@ const {
     deleteUser, 
     deleteIncident, 
     createAnnouncement,
-    getAllAnnouncements 
+    getAllAnnouncements,
+    deleteAnnouncement 
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -29,5 +30,6 @@ router.delete('/incidents/:id', deleteIncident);
 // Announcements
 router.post('/announcements', createAnnouncement);
 router.get('/announcements', getAllAnnouncements);
+router.delete('/announcements/:id', deleteAnnouncement);
 
 module.exports = router;

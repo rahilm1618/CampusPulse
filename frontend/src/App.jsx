@@ -17,9 +17,7 @@ import PrivateRoute from "./components/PrivateRoute";
 
 import SecurityDashboard from "./pages/SecurityDashboard";
 
-const HODDashboard = () => (
-  <h1 className="text-white text-center mt-20 text-3xl">HOD Dashboard (Coming Soon)</h1>
-);
+import HODDashboard from "./pages/HODDashboard";
 
 const Unauthorized = () => (
   <div className="flex h-screen items-center justify-center bg-gradient-animated">

@@ -46,7 +46,7 @@ const SecurityMap = ({ incidents }) => {
         : defaultCenter;
 
     return (
-        <div className="h-[500px] w-full rounded-xl overflow-hidden border border-gray-700 shadow-2xl relative z-0">
+        <div className="h-125 w-full rounded-xl overflow-hidden border border-gray-700 shadow-2xl relative z-0">
             <MapContainer 
                 center={center} 
                 zoom={16} 

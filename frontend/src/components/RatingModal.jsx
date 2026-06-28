@@ -110,8 +110,8 @@ const RatingModal = ({ incident, onClose, onSuccess }) => {
                         disabled={isSubmitting || rating === 0}
                         className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg ${
                             rating === 1 
-                            ? 'bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 shadow-red-500/25 text-white' 
-                            : 'bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 shadow-blue-500/25 text-white'
+                            ? 'bg-linear-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 shadow-red-500/25 text-white' 
+                            : 'bg-linear-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 shadow-blue-500/25 text-white'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                         {isSubmitting ? 'Submitting...' : (rating === 1 ? 'Reopen Task' : 'Submit Rating')}

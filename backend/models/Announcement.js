@@ -14,6 +14,16 @@ const AnnouncementSchema = new mongoose.Schema({
         enum: ['Normal', 'High', 'Critical'],
         default: 'Normal'
     },
+    audience: {
+        type: String,
+        enum: ['All', 'Student', 'Faculty', 'Maintenance', 'Department'],
+        default: 'All'
+    },
+    targetDepartment: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Department',
+        required: function() { return this.audience === 'Department'; }
+    },
     createdBy: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User',

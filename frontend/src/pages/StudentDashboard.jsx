@@ -8,6 +8,10 @@ import ReportIncidentForm from "../components/ReportIncidentForm";
 import ChatInterface from "../components/ChatInterface"; // <--- Import the Chat Component
 import PanicButton from "../components/PanicButton";
 import RatingModal from "../components/RatingModal";
+import AnnouncementBanner from "../components/AnnouncementBanner";
+import ProfileSettingsModal from "../components/ProfileSettingsModal";
+import { FaCog, FaUserCircle } from "react-icons/fa";
+import { useUnreadMessages } from "../hooks/useUnreadMessages";
 
 const StudentDashboard = () => {
     const { user } = useSelector((state) => state.auth);
@@ -15,10 +19,13 @@ const StudentDashboard = () => {
     const navigate = useNavigate();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [ratingModalIncident, setRatingModalIncident] = useState(null);
     const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard' or 'chat'
     const [incidents, setIncidents] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    const unreadCount = useUnreadMessages(incidents, user);
 
     // Optimized Fetch Function (Reusable)
     const fetchIncidents = useCallback(async () => {
@@ -58,9 +65,16 @@ const StudentDashboard = () => {
             
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 border-b border-gray-700 pb-4 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-blue-400">Welcome, {user?.name}</h1>
-                    <p className="text-gray-400">Student Dashboard</p>
+                <div className="flex items-center gap-4">
+                    {user?.avatar ? (
+                        <img src={user.avatar} alt="Avatar" className="w-14 h-14 rounded-full object-cover border-2 border-blue-500 shadow-lg" />
+                    ) : (
+                        <FaUserCircle className="text-5xl text-gray-400" />
+                    )}
+                    <div>
+                        <h1 className="text-3xl font-bold text-blue-400">Welcome, {user?.name}</h1>
+                        <p className="text-gray-400">Student Dashboard</p>
+                    </div>
                 </div>
                 <div className="flex gap-4">
                     <button
@@ -68,6 +82,13 @@ const StudentDashboard = () => {
                         className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-semibold transition shadow-lg hover:shadow-blue-500/50"
                     >
                         + Report New Issue
+                    </button>
+                    <button 
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="bg-gray-800 hover:bg-gray-700 text-gray-300 p-2 rounded-lg transition border border-gray-700 shadow-sm"
+                        title="Profile Settings"
+                    >
+                        <FaCog size={20} />
                     </button>
                     <button
                         onClick={handleLogout}
@@ -92,19 +113,26 @@ const StudentDashboard = () => {
                 </button>
                 <button 
                     onClick={() => setActiveTab("chat")}
-                    className={`pb-2 px-2 font-semibold transition ${
+                    className={`pb-2 px-2 font-semibold transition flex items-center gap-2 ${
                         activeTab === 'chat' 
                         ? 'text-blue-400 border-b-2 border-blue-400' 
                         : 'text-gray-400 hover:text-white'
                     }`}
                 >
                     Messages / Chat
+                    {unreadCount > 0 && (
+                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                            {unreadCount}
+                        </span>
+                    )}
                 </button>
             </div>
 
             {/* --- CONTENT AREA --- */}
             {activeTab === "dashboard" ? (
                 <>
+                    <AnnouncementBanner />
+                    
                     {/* Stats Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                         <div className="bg-gray-800 p-6 rounded-xl shadow-lg border-l-4 border-blue-500">
@@ -225,6 +253,11 @@ const StudentDashboard = () => {
                     onClose={() => setRatingModalIncident(null)}
                     onSuccess={fetchIncidents}
                 />
+            )}
+
+            {/* Settings Modal */}
+            {isSettingsOpen && (
+                <ProfileSettingsModal onClose={() => setIsSettingsOpen(false)} />
             )}
 
             {/* Floating Panic Button */}

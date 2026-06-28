@@ -8,7 +8,10 @@ import TaskActionModal from "../components/TaskActionModal";
 import ChatInterface from "../components/ChatInterface";
 import SecurityMap from "../components/SecurityMap";
 import PanicButton from "../components/PanicButton";
-import { FaMapMarkedAlt, FaListUl, FaComments, FaExclamationTriangle, FaShieldAlt } from "react-icons/fa";
+import AnnouncementBanner from "../components/AnnouncementBanner";
+import ProfileSettingsModal from "../components/ProfileSettingsModal";
+import { FaMapMarkedAlt, FaListUl, FaComments, FaExclamationTriangle, FaShieldAlt, FaCog, FaUserCircle } from "react-icons/fa";
+import { useUnreadMessages } from "../hooks/useUnreadMessages";
 
 const SecurityDashboard = () => {
     const { user } = useSelector((state) => state.auth);
@@ -20,6 +23,9 @@ const SecurityDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('tasks'); // 'tasks', 'map', 'chat'
     const [selectedTask, setSelectedTask] = useState(null);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+    const unreadCount = useUnreadMessages(tasks, user);
 
     const fetchDashboardData = async () => {
         try {
@@ -55,9 +61,16 @@ const SecurityDashboard = () => {
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-center bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700 mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold text-white mb-2">Security Command Center</h1>
-                        <p className="text-gray-400">Officer: <span className="text-blue-400 font-semibold">{user.name}</span></p>
+                    <div className="flex items-center gap-4">
+                        {user?.avatar ? (
+                            <img src={user.avatar} alt="Avatar" className="w-14 h-14 rounded-full object-cover border-2 border-blue-500 shadow-lg" />
+                        ) : (
+                            <FaUserCircle className="text-5xl text-gray-400" />
+                        )}
+                        <div>
+                            <h1 className="text-3xl font-bold text-white mb-2">Security Command Center</h1>
+                            <p className="text-gray-400">Officer: <span className="text-blue-400 font-semibold">{user.name}</span></p>
+                        </div>
                     </div>
                     <div className="flex gap-4 mt-4 md:mt-0">
                         <div className="bg-gray-700 px-4 py-3 rounded-xl border border-gray-600 text-center">
@@ -70,7 +83,14 @@ const SecurityDashboard = () => {
                                 {unassignedCritical}
                             </p>
                         </div>
-                        <div className="flex items-center ml-2 border-l border-gray-700 pl-4">
+                        <div className="flex items-center ml-2 border-l border-gray-700 pl-4 gap-3">
+                            <button 
+                                onClick={() => setIsSettingsOpen(true)}
+                                className="bg-gray-800 hover:bg-gray-700 text-gray-300 p-2 rounded-lg transition border border-gray-700 shadow-sm"
+                                title="Profile Settings"
+                            >
+                                <FaCog size={20} />
+                            </button>
                             <button 
                                 onClick={handleLogout}
                                 className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
@@ -101,11 +121,16 @@ const SecurityDashboard = () => {
                     </button>
                     <button 
                         onClick={() => setActiveTab('chat')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-semibold transition ${
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-semibold transition relative ${
                             activeTab === 'chat' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700'
                         }`}
                     >
                         <FaComments /> Comms
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse shadow-md">
+                                {unreadCount}
+                            </span>
+                        )}
                     </button>
                 </div>
 
@@ -117,15 +142,17 @@ const SecurityDashboard = () => {
                 ) : (
                     <div className="fade-in-up">
                         {activeTab === 'tasks' && (
-                            <div className="bg-gray-800 rounded-2xl shadow-xl border border-gray-700 overflow-hidden">
-                                <div className="p-6 border-b border-gray-700">
-                                    <h2 className="text-xl font-bold text-white">Your Assigned Tasks & Unassigned Alerts</h2>
-                                    <p className="text-sm text-gray-400 mt-1">Claim unassigned incidents or update your active patrol tasks.</p>
-                                </div>
-                                
-                                {tasks.length === 0 ? (
-                                    <div className="p-10 text-center">
-                                        <FaShieldAlt className="mx-auto text-4xl text-gray-600 mb-4" />
+                            <div className="space-y-6">
+                                <AnnouncementBanner />
+                                <div className="bg-gray-800 rounded-2xl shadow-xl border border-gray-700 overflow-hidden">
+                                    <div className="p-6 border-b border-gray-700">
+                                        <h2 className="text-xl font-bold text-white">Your Assigned Tasks & Unassigned Alerts</h2>
+                                        <p className="text-sm text-gray-400 mt-1">Claim unassigned incidents or update your active patrol tasks.</p>
+                                    </div>
+                                    
+                                    {tasks.length === 0 ? (
+                                        <div className="p-10 text-center">
+                                            <FaShieldAlt className="mx-auto text-4xl text-gray-600 mb-4" />
                                         <h3 className="text-lg font-medium text-gray-300">Campus is secure</h3>
                                         <p className="text-gray-500 mt-1">No active incidents require your attention.</p>
                                     </div>
@@ -182,6 +209,7 @@ const SecurityDashboard = () => {
                                     </div>
                                 )}
                             </div>
+                        </div>
                         )}
 
                         {activeTab === 'map' && (
@@ -195,7 +223,7 @@ const SecurityDashboard = () => {
                         )}
 
                         {activeTab === 'chat' && (
-                            <div className="bg-gray-800 rounded-2xl shadow-xl border border-gray-700 h-[600px] overflow-hidden">
+                            <div className="bg-gray-800 rounded-2xl shadow-xl border border-gray-700 h-150 overflow-hidden">
                                 <ChatInterface 
                                     incidents={tasks}  
                                     currentUser={user} 
@@ -214,6 +242,11 @@ const SecurityDashboard = () => {
                     onClose={() => setSelectedTask(null)}
                     onUpdate={fetchDashboardData} 
                 />
+            )}
+
+            {/* Settings Modal */}
+            {isSettingsOpen && (
+                <ProfileSettingsModal onClose={() => setIsSettingsOpen(false)} />
             )}
 
             {/* Floating Panic Button

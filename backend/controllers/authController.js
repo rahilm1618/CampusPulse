@@ -115,3 +115,79 @@ exports.addStaff = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+// @desc    Get Targeted Announcements for logged-in user
+// @route   GET /api/auth/my-announcements
+// @access  Private
+exports.getMyAnnouncements = async (req, res) => {
+    try {
+        const Announcement = require('../models/Announcement'); // Dynamic import to avoid circular dep if any
+        const { role, department } = req.user;
+        
+        // Build the OR query for audiences
+        const audiences = ['All'];
+        if (role === 'Student') audiences.push('Student');
+        if (role === 'Faculty') audiences.push('Faculty');
+        if (role === 'Maintenance') audiences.push('Maintenance');
+        // If they belong to a department (HOD, Maintenance, Security), include Department target
+        if (department) audiences.push('Department');
+
+        const query = {
+            isActive: true,
+            $or: [
+                { audience: { $in: audiences.filter(a => a !== 'Department') } },
+                { audience: 'Department', targetDepartment: department }
+            ]
+        };
+
+        const announcements = await Announcement.find(query).sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: announcements
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Update User Profile
+// @route   PUT /api/auth/profile
+// @access  Private
+exports.updateProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Handle Avatar Upload if a file is provided via multer
+        if (req.file) {
+            user.avatar = req.file.path; // Cloudinary URL
+        }
+
+        if (req.body.name) {
+            user.name = req.body.name;
+        }
+        
+        if (req.body.password) {
+            user.password = req.body.password;
+        }
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            data: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                department: user.department,
+                avatar: user.avatar
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

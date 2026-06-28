@@ -102,16 +102,19 @@ exports.getHODDashboard = async (req, res) => {
             return res.status(400).json({ message: "You are not associated with any department" });
         }
 
-        // 1. Get Status Counts (Open, In Progress, Resolved)
+        // 1. Get Department Details
+        const department = await Department.findById(deptId);
+        
+        // 2. Get Status Counts (Open, In Progress, Resolved)
         const stats = await Incident.aggregate([
             { $match: { department: deptId } },
             { $group: { _id: "$status", count: { $sum: 1 } } }
         ]);
 
-        // 2. Get Staff Performance (List of staff and their active tasks)
+        // 3. Get Staff Performance (List of staff and their active tasks)
         const staffWorkload = await User.find({ 
             department: deptId, 
-            role: 'Maintenance' 
+            role: { $in: ['Maintenance', 'Security'] } 
         })
         .select('name email activeTasks')
         .sort({ activeTasks: -1 });
@@ -127,6 +130,7 @@ exports.getHODDashboard = async (req, res) => {
         res.status(200).json({
             success: true,
             departmentId: deptId,
+            departmentName: department?.name || "Unknown Department",
             statusSummary: stats,
             teamWorkload: staffWorkload,
             recentActivity: recentIncidents

@@ -22,12 +22,32 @@ exports.getAdminStats = async (req, res) => {
             }
         ]);
 
+        const usersByRole = await User.aggregate([
+            {
+                $group: {
+                    _id: "$role",
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const incidentsByStatus = await Incident.aggregate([
+            {
+                $group: {
+                    _id: "$status",
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
         res.status(200).json({
             totalUsers,
             totalIncidents,
             openIncidents,
             criticalIncidents,
-            deptPerformance
+            deptPerformance,
+            usersByRole,
+            incidentsByStatus
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -116,16 +136,18 @@ exports.deleteIncident = async (req, res) => {
 
 // @desc    Create Announcement
 // @route   POST /api/admin/announcements
-exports.createAnnouncement = async (req, res) => {
-    try {
-        const { title, message, priority } = req.body;
-        
-        const announcement = await Announcement.create({
-            title,
-            message,
-            priority,
-            createdBy: req.user._id
-        });
+    exports.createAnnouncement = async (req, res) => {
+        try {
+            const { title, message, priority, audience, targetDepartment } = req.body;
+            
+            const announcement = await Announcement.create({
+                title,
+                message,
+                priority,
+                audience: audience || 'All',
+                targetDepartment: audience === 'Department' ? targetDepartment : undefined,
+                createdBy: req.user._id
+            });
 
         res.status(201).json({
             success: true,
@@ -151,3 +173,16 @@ exports.getAllAnnouncements = async (req, res) => {
     }
 };
 
+// @desc    Delete Announcement
+// @route   DELETE /api/admin/announcements/:id
+exports.deleteAnnouncement = async (req, res) => {
+    try {
+        const announcement = await Announcement.findByIdAndDelete(req.params.id);
+        if (!announcement) {
+            return res.status(404).json({ message: "Announcement not found" });
+        }
+        res.status(200).json({ message: "Announcement deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

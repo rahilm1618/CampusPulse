@@ -3,6 +3,7 @@ import axios from "../utils/axiosInstance";
 import { toast } from "react-toastify";
 import { FaPaperPlane, FaUserCircle } from "react-icons/fa";
 import { io } from "socket.io-client"; // Import Socket Client
+import { markIncidentAsRead, getIncidentUnreadCount } from "../hooks/useUnreadMessages";
 
 // Initialize socket outside component to prevent re-connections on every render
 // Make sure this matches your backend URL (usually localhost:5000)
@@ -19,8 +20,9 @@ const ChatInterface = ({ incidents, currentUser }) => {
     if (selectedIncident) {
       // Emit event to join specific room (Backend listens for 'join_incident')
       socket.emit("join_incident", selectedIncident._id);
+      markIncidentAsRead(selectedIncident, currentUser);
     }
-  }, [selectedIncident]);
+  }, [selectedIncident, currentUser]);
 
   // 2. Listen for Incoming Messages (Real-Time)
   useEffect(() => {
@@ -113,10 +115,13 @@ const ChatInterface = ({ incidents, currentUser }) => {
               }`}
             >
               <p className="text-white font-semibold truncate">{inc.title}</p>
-              <p className="text-xs text-gray-400">
-                 ID: #{inc._id.slice(-6)} • <span className={inc.comments?.length > 0 ? "text-green-400" : "text-gray-500"}>
-                    {inc.comments?.length || 0} msgs
-                 </span>
+              <p className="text-xs text-gray-400 flex items-center justify-between">
+                 <span>ID: #{inc._id.slice(-6)}</span>
+                 {getIncidentUnreadCount(inc, currentUser) > 0 && (
+                     <span className="text-green-400 bg-green-500/20 px-2 py-0.5 rounded-full font-bold">
+                        {getIncidentUnreadCount(inc, currentUser)} new msgs
+                     </span>
+                 )}
               </p>
             </div>
           ))}

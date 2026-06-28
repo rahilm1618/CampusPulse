@@ -6,7 +6,10 @@ import { useNavigate } from "react-router-dom";
 import TaskActionModal from "../components/TaskActionModal";
 import ChatInterface from "../components/ChatInterface";
 import PanicButton from "../components/PanicButton"; // Reusing the chat!
-import { FaClipboardCheck, FaTools, FaStar, FaExclamationTriangle } from "react-icons/fa";
+import AnnouncementBanner from "../components/AnnouncementBanner";
+import ProfileSettingsModal from "../components/ProfileSettingsModal";
+import { FaClipboardCheck, FaTools, FaStar, FaExclamationTriangle, FaCog, FaUserCircle } from "react-icons/fa";
+import { useUnreadMessages } from "../hooks/useUnreadMessages";
 
 const StaffDashboard = () => {
   const { user } = useSelector((state) => state.auth);
@@ -18,6 +21,9 @@ const StaffDashboard = () => {
   const [stats, setStats] = useState({ completedToday: 0, activePending: 0, averageRating: 0 });
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  const unreadCount = useUnreadMessages(tasks, user);
 
   // Reusable Fetch Function
   const fetchDashboardData = useCallback(async () => {
@@ -45,16 +51,32 @@ const StaffDashboard = () => {
       
       {/* Header */}
       <div className="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
-        <div>
-          <h1 className="text-3xl font-bold text-blue-400">Staff Dashboard</h1>
-          <p className="text-gray-400">Welcome, {user?.name}</p>
+        <div className="flex items-center gap-4">
+            {user?.avatar ? (
+                <img src={user.avatar} alt="Avatar" className="w-14 h-14 rounded-full object-cover border-2 border-blue-500 shadow-lg" />
+            ) : (
+                <FaUserCircle className="text-5xl text-gray-400" />
+            )}
+            <div>
+                <h1 className="text-3xl font-bold text-blue-400">Staff Dashboard</h1>
+                <p className="text-gray-400">Welcome, {user?.name}</p>
+            </div>
         </div>
-        <button 
-          onClick={() => { dispatch(logout()); navigate("/login"); }}
-          className="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-lg font-semibold"
-        >
-          Logout
-        </button>
+        <div className="flex items-center gap-4">
+          <button 
+              onClick={() => setIsSettingsOpen(true)}
+              className="bg-gray-800 hover:bg-gray-700 text-gray-300 p-2 rounded-lg transition border border-gray-700 shadow-sm"
+              title="Profile Settings"
+          >
+              <FaCog size={20} />
+          </button>
+          <button 
+            onClick={() => { dispatch(logout()); navigate("/login"); }}
+            className="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-lg font-semibold"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -69,17 +91,23 @@ const StaffDashboard = () => {
         </button>
         <button 
             onClick={() => setActiveTab("chat")}
-            className={`pb-2 px-2 font-semibold transition ${
+            className={`pb-2 px-2 font-semibold transition flex items-center gap-2 ${
                 activeTab === 'chat' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'
             }`}
         >
             Messages
+            {unreadCount > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                    {unreadCount}
+                </span>
+            )}
         </button>
       </div>
 
       {/* Content Switcher */}
       {activeTab === "dashboard" ? (
           <>
+            <AnnouncementBanner />
             {/* Stats Bar */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-gray-800 p-6 rounded-xl border-l-4 border-green-500 flex items-center gap-4">
@@ -181,6 +209,11 @@ const StaffDashboard = () => {
           onClose={() => setSelectedTask(null)}
           onUpdate={fetchDashboardData} 
         />
+      )}
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+          <ProfileSettingsModal onClose={() => setIsSettingsOpen(false)} />
       )}
 
       {/* Floating Panic Button */}

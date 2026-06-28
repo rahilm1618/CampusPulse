@@ -1,434 +1,390 @@
-import { useEffect, useState } from "react";
-import axios from "../utils/axiosInstance";
-import { useDispatch, useSelector } from "react-redux";
+import { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../features/auth/authSlice";
 import { useNavigate } from "react-router-dom";
+import axios from "../utils/axiosInstance";
 import { toast } from "react-toastify";
-import { 
-    FaUsers, 
-    FaClipboardList, 
-    FaBullhorn, 
-    FaTrash, 
-    FaBuilding, 
-    FaUserTie, 
-    FaChartPie 
-} from "react-icons/fa";
+import { FaUsers, FaTasks, FaBullhorn, FaTrash, FaChartPie, FaCog, FaUserCircle } from "react-icons/fa";
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import ProfileSettingsModal from "../components/ProfileSettingsModal";
 
 const AdminDashboard = () => {
   const { user } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // --- STATE MANAGEMENT ---
   const [activeTab, setActiveTab] = useState("overview");
+  const [loading, setLoading] = useState(true);
   
   // Data States
   const [stats, setStats] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [incidents, setIncidents] = useState([]);
+  const [usersList, setUsersList] = useState([]);
+  const [incidentsList, setIncidentsList] = useState([]);
   const [departments, setDepartments] = useState([]);
-  
-  // Form States
-  const [newDept, setNewDept] = useState({ name: "", description: "", buildingLocation: "" });
-  const [announcement, setAnnouncement] = useState({ title: "", message: "", priority: "Normal" });
-  
-  // HOD Assignment Modal States
-  const [selectedDeptId, setSelectedDeptId] = useState(null);
-  const [selectedUserId, setSelectedUserId] = useState("");
+  const [announcementsList, setAnnouncementsList] = useState([]);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // --- FETCHING FUNCTIONS ---
-  const fetchStats = async () => {
-    try { const res = await axios.get("/admin/stats"); setStats(res.data); } catch (e) { console.error(e); }
-  };
+  // Broadcast Form State
+  const [broadcastData, setBroadcastData] = useState({
+    title: '',
+    message: '',
+    priority: 'Normal',
+    audience: 'All',
+    targetDepartment: ''
+  });
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
 
-  const fetchUsers = async () => {
-    try { const res = await axios.get("/admin/users"); setUsers(res.data); } catch (e) { toast.error("Failed to load users"); }
-  };
-
-  const fetchIncidents = async () => {
-    try { 
-        const res = await axios.get("/admin/incidents");
-        setIncidents(res.data.data ? res.data.data : res.data);
-    } catch (e) { toast.error("Failed to load incidents"); }
-  };
-
-  const fetchDepartments = async () => {
-    try { const res = await axios.get("/departments"); setDepartments(res.data); } catch (e) { toast.error("Failed to load departments"); }
-  };
-
-  // Load Data on Tab Change
   useEffect(() => {
-    fetchStats(); 
-    if (activeTab === "users") fetchUsers();
-    if (activeTab === "incidents") fetchIncidents();
-    if (activeTab === "departments") { fetchDepartments(); fetchUsers(); } 
-  }, [activeTab]);
+    fetchData();
+  }, []);
 
-  // --- ACTION HANDLERS ---
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [statsRes, usersRes, incidentsRes, deptsRes, announcementsRes] = await Promise.all([
+        axios.get("/admin/stats"),
+        axios.get("/admin/users"),
+        axios.get("/admin/incidents"),
+        axios.get("/departments"),
+        axios.get("/admin/announcements")
+      ]);
+      setStats(statsRes.data);
+      setUsersList(usersRes.data);
+      setIncidentsList(incidentsRes.data.data);
+      setDepartments(deptsRes.data);
+      setAnnouncementsList(announcementsRes.data);
+    } catch (error) {
+      toast.error("Failed to load admin data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate("/login");
+  };
 
   const handleDeleteUser = async (id) => {
-    if (!window.confirm("Are you sure? This action is irreversible.")) return;
-    try { await axios.delete(`/admin/users/${id}`); toast.success("User deleted"); fetchUsers(); } 
-    catch (err) { toast.error("Failed to delete user"); }
+    if (!window.confirm("Are you sure you want to delete this user permanently?")) return;
+    try {
+      await axios.delete(`/admin/users/${id}`);
+      setUsersList(usersList.filter(u => u._id !== id));
+      toast.success("User deleted successfully.");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete user.");
+    }
   };
 
   const handleDeleteIncident = async (id) => {
-    if (!window.confirm("Delete this incident report?")) return;
-    try { await axios.delete(`/admin/incidents/${id}`); toast.success("Incident deleted"); fetchIncidents(); } 
-    catch (err) { toast.error("Failed to delete incident"); }
-  };
-
-  const handleCreateDept = async (e) => {
-    e.preventDefault();
+    if (!window.confirm("Are you sure you want to delete this incident permanently?")) return;
     try {
-        await axios.post("/departments", newDept);
-        toast.success("Department Created Successfully");
-        setNewDept({ name: "", description: "", buildingLocation: "" });
-        fetchDepartments();
-    } catch (err) { toast.error(err.response?.data?.message || "Failed to create department"); }
+      await axios.delete(`/admin/incidents/${id}`);
+      setIncidentsList(incidentsList.filter(i => i._id !== id));
+      toast.success("Incident deleted successfully.");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete incident.");
+    }
   };
 
-  const handleAssignHOD = async () => {
-      if(!selectedUserId) return toast.error("Please select a user");
-      try {
-          await axios.put(`/departments/${selectedDeptId}/assign-hod`, { hodId: selectedUserId });
-          toast.success("HOD Assigned Successfully");
-          setSelectedDeptId(null); 
-          setSelectedUserId("");
-          fetchDepartments(); 
-      } catch (err) { toast.error(err.response?.data?.message || "Failed to assign HOD"); }
-  };
-
-  const handlePostAnnouncement = async (e) => {
-    e.preventDefault();
+  const handleDeleteAnnouncement = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this broadcast?")) return;
     try {
-      await axios.post("/admin/announcements", announcement);
-      toast.success("Announcement Broadcasted!");
-      setAnnouncement({ title: "", message: "", priority: "Normal" });
-    } catch (err) { toast.error("Failed to post announcement"); }
+      await axios.delete(`/admin/announcements/${id}`);
+      setAnnouncementsList(announcementsList.filter(a => a._id !== id));
+      toast.success("Broadcast deleted successfully.");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete broadcast.");
+    }
   };
+
+  const handleBroadcast = async (e) => {
+    e.preventDefault();
+    if (broadcastData.audience === 'Department' && !broadcastData.targetDepartment) {
+        return toast.error("Please select a target department.");
+    }
+    try {
+      setIsBroadcasting(true);
+      const res = await axios.post("/admin/announcements", broadcastData);
+      setAnnouncementsList([res.data.data, ...announcementsList]);
+      toast.success("Broadcast sent successfully!");
+      setBroadcastData({ title: '', message: '', priority: 'Normal', audience: 'All', targetDepartment: '' });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to broadcast announcement.");
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
+  if (loading || !stats) {
+    return <div className="min-h-screen bg-gray-900 flex justify-center items-center text-white text-xl animate-pulse">Loading System Data...</div>;
+  }
+
+  // Prepare Chart Data
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const userRoleData = stats.usersByRole.map(r => ({ name: r._id, value: r.count }));
+  const incidentStatusData = stats.incidentsByStatus.map(s => ({ name: s._id, value: s.count }));
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
-      
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-8 border-b border-gray-700 pb-4">
-        <div>
-          <h1 className="text-3xl font-bold text-red-500">Admin Control Center</h1>
-          <p className="text-gray-400 text-sm">System Administrator: <span className="text-white">{user?.name}</span></p>
-        </div>
-        <button 
-          onClick={() => { dispatch(logout()); navigate("/login"); }}
-          className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg font-semibold transition"
-        >
-          Logout
-        </button>
-      </div>
-
-      {/* TAB NAVIGATION */}
-      <div className="flex flex-wrap gap-4 mb-8">
-        {[
-            { id: "overview", label: "Overview", icon: <FaChartPie/> },
-            { id: "departments", label: "Departments", icon: <FaBuilding/> },
-            { id: "users", label: "Users", icon: <FaUsers/> },
-            { id: "incidents", label: "Incidents", icon: <FaClipboardList/> },
-            { id: "announcements", label: "Broadcasts", icon: <FaBullhorn/> }
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition ${
-              activeTab === tab.id ? "bg-red-600 text-white shadow-lg shadow-red-500/30" : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"
-            }`}
-          >
-            {tab.icon} {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* --- CONTENT AREA --- */}
-      
-      {/* 1. OVERVIEW TAB */}
-      {activeTab === "overview" && stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-fade-in">
-            <div className="bg-gray-800 p-6 rounded-xl border-l-4 border-blue-500 shadow-lg">
-                <h3 className="text-gray-400 text-sm uppercase">Total Users</h3>
-                <p className="text-4xl font-bold mt-2">{stats.totalUsers}</p>
-            </div>
-            <div className="bg-gray-800 p-6 rounded-xl border-l-4 border-yellow-500 shadow-lg">
-                <h3 className="text-gray-400 text-sm uppercase">Total Incidents</h3>
-                <p className="text-4xl font-bold mt-2">{stats.totalIncidents}</p>
-            </div>
-            <div className="bg-gray-800 p-6 rounded-xl border-l-4 border-orange-500 shadow-lg">
-                <h3 className="text-gray-400 text-sm uppercase">Active Issues</h3>
-                <p className="text-4xl font-bold mt-2">{stats.openIncidents}</p>
-            </div>
-            <div className="bg-gray-800 p-6 rounded-xl border-l-4 border-red-600 shadow-lg animate-pulse">
-                <h3 className="text-gray-400 text-sm uppercase">Critical Threats</h3>
-                <p className="text-4xl font-bold mt-2 text-red-500">{stats.criticalIncidents}</p>
-            </div>
-        </div>
-      )}
-
-      {/* 2. DEPARTMENTS TAB */}
-      {activeTab === "departments" && (
-        <div className="space-y-8 animate-fade-in">
-            {/* Create Dept Form */}
-            <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
-                <h3 className="text-xl font-bold mb-4 text-blue-400">Add New Department</h3>
-                <form onSubmit={handleCreateDept} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <input 
-                        placeholder="Name (e.g. Electrical)" 
-                        className="bg-gray-900 p-3 rounded text-white border border-gray-600 focus:border-blue-500 outline-none"
-                        value={newDept.name} onChange={(e) => setNewDept({...newDept, name: e.target.value})} required
-                    />
-                    <input 
-                        placeholder="Location (e.g. Block A)" 
-                        className="bg-gray-900 p-3 rounded text-white border border-gray-600 focus:border-blue-500 outline-none"
-                        value={newDept.buildingLocation} onChange={(e) => setNewDept({...newDept, buildingLocation: e.target.value})} required
-                    />
-                    <input 
-                        placeholder="Description (Optional)" 
-                        className="bg-gray-900 p-3 rounded text-white border border-gray-600 focus:border-blue-500 outline-none"
-                        value={newDept.description} onChange={(e) => setNewDept({...newDept, description: e.target.value})} 
-                    />
-                    <button type="submit" className="bg-blue-600 hover:bg-blue-500 font-bold rounded transition">Create</button>
-                </form>
-            </div>
-
-            {/* Department List */}
-            <div className="bg-gray-800 rounded-xl overflow-hidden shadow-xl border border-gray-700">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-700 text-gray-300">
-                        <tr>
-                            <th className="p-4">Department Name</th>
-                            <th className="p-4">Location</th>
-                            <th className="p-4">Head of Dept (HOD)</th>
-                            <th className="p-4">Manage</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-700">
-                        {departments.map((dept) => (
-                            <tr key={dept._id} className="hover:bg-gray-750 transition">
-                                <td className="p-4 font-bold">{dept.name}</td>
-                                <td className="p-4 text-gray-400">{dept.buildingLocation}</td>
-                                <td className="p-4">
-                                    {dept.headOfDepartment ? (
-                                        <span className="text-green-400 flex items-center gap-2 bg-green-900/30 px-2 py-1 rounded w-fit text-sm">
-                                            <FaUserTie/> {dept.headOfDepartment.name}
-                                        </span>
-                                    ) : <span className="text-red-400 text-sm italic">Not Assigned</span>}
-                                </td>
-                                <td className="p-4">
-                                    <button 
-                                        onClick={() => setSelectedDeptId(dept._id)}
-                                        className="bg-gray-700 hover:bg-gray-600 text-blue-400 px-3 py-1 rounded text-xs border border-gray-600 hover:border-blue-400 transition"
-                                    >
-                                        Assign HOD
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* HOD Assignment Modal (Filtered) */}
-            {selectedDeptId && (
-                <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50 p-4">
-                    <div className="bg-gray-800 p-6 rounded-xl w-full max-w-md border border-gray-600 shadow-2xl">
-                        <h3 className="font-bold text-xl mb-4 text-white">Select New HOD</h3>
-                        <p className="text-xs text-yellow-500 mb-4 bg-yellow-900/20 p-2 rounded">
-                            ⚠️ Note: Only 'Maintenance' staff assigned to this department are shown.
-                        </p>
-                        
-                        <label className="text-sm text-gray-400 block mb-2">Choose Staff Member:</label>
-                        <select 
-                            className="w-full p-3 bg-gray-900 text-white rounded mb-6 border border-gray-600 focus:border-blue-500 outline-none"
-                            onChange={(e) => setSelectedUserId(e.target.value)}
-                            value={selectedUserId}
-                        >
-                            <option value="">-- Select Staff from {departments.find(d => d._id === selectedDeptId)?.name} --</option>
-                            
-                            {users
-                                .filter(u => {
-                                    // 1. Must be Maintenance Staff
-                                    if (u.role !== 'Maintenance') return false;
-                                    
-                                    // 2. Must belong to the Selected Department
-                                    // Handle both populated object and raw ID string
-                                    const userDeptId = u.department?._id || u.department;
-                                    return userDeptId === selectedDeptId;
-                                })
-                                .map(u => (
-                                    <option key={u._id} value={u._id}>{u.name} ({u.email})</option>
-                            ))}
-
-                            {/* Show message if empty */}
-                            {users.filter(u => u.role === 'Maintenance' && (u.department?._id || u.department) === selectedDeptId).length === 0 && (
-                                <option disabled>No staff members found in this department</option>
-                            )}
-                        </select>
-
-                        <div className="flex gap-3 justify-end">
-                            <button 
-                                onClick={() => { setSelectedDeptId(null); setSelectedUserId(""); }} 
-                                className="px-4 py-2 text-gray-400 hover:text-white transition"
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                onClick={handleAssignHOD} 
-                                className="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded text-white font-bold transition shadow-lg"
-                            >
-                                Confirm
-                            </button>
-                        </div>
-                    </div>
-                </div>
+      <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row justify-between items-center bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700">
+          <div className="flex items-center gap-4">
+            {user?.avatar ? (
+                <img src={user.avatar} alt="Avatar" className="w-14 h-14 rounded-full object-cover border-2 border-purple-500 shadow-lg" />
+            ) : (
+                <FaUserCircle className="text-5xl text-gray-400" />
             )}
-        </div>
-      )}
-
-      {/* 3. USERS TAB */}
-      {activeTab === "users" && (
-        <div className="bg-gray-800 rounded-xl overflow-hidden shadow-xl border border-gray-700 animate-fade-in">
-          <table className="w-full text-left">
-            <thead className="bg-gray-700 text-gray-300">
-              <tr>
-                <th className="p-4">Name</th>
-                <th className="p-4">Email</th>
-                <th className="p-4">Role</th>
-                <th className="p-4">Department</th>
-                <th className="p-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {users.map((u) => (
-                <tr key={u._id} className="hover:bg-gray-750 transition">
-                  <td className="p-4 font-medium">{u.name}</td>
-                  <td className="p-4 text-gray-400">{u.email}</td>
-                  <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs border ${
-                          u.role === 'Admin' ? 'bg-red-900/50 border-red-500 text-red-200' :
-                          u.role === 'Student' ? 'bg-green-900/50 border-green-500 text-green-200' :
-                          'bg-blue-900/50 border-blue-500 text-blue-200'
-                      }`}>
-                          {u.role}
-                      </span>
-                  </td>
-                  <td className="p-4 text-sm text-gray-400">
-                      {/* Safely handle populated department name */}
-                      {u.department?.name || u.department || "—"}
-                  </td>
-                  <td className="p-4">
-                    {u.role !== 'Admin' && (
-                      <button onClick={() => handleDeleteUser(u._id)} className="text-red-500 hover:text-red-400 hover:bg-red-900/30 p-2 rounded transition">
-                        <FaTrash />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* 4. INCIDENTS TAB */}
-      {activeTab === "incidents" && (
-        <div className="bg-gray-800 rounded-xl overflow-hidden shadow-xl border border-gray-700 animate-fade-in">
-           <div className="p-4 bg-gray-750 flex justify-between items-center border-b border-gray-700">
-              <h3 className="font-bold text-gray-200">System Tickets Log</h3>
-              <span className="text-xs bg-gray-700 px-2 py-1 rounded text-gray-400">{incidents.length} Total</span>
-           </div>
-           <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-700 text-gray-300">
-                <tr>
-                  <th className="p-4">Incident Title</th>
-                  <th className="p-4">Reported By</th>
-                  <th className="p-4">Priority</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4">Delete</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {incidents.map((inc) => (
-                  <tr key={inc._id} className="hover:bg-gray-750 transition">
-                    <td className="p-4 font-medium">{inc.title}</td>
-                    <td className="p-4 text-sm text-gray-400">{inc.reportedBy?.name || 'Unknown'}</td>
-                    <td className="p-4">
-                        <span className={`text-xs px-2 py-1 rounded font-bold ${
-                            inc.priority === 'Critical' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
-                        }`}>{inc.priority}</span>
-                    </td>
-                    <td className="p-4 text-sm">
-                        <span className={`text-xs px-2 py-1 rounded border ${
-                            inc.status === 'RESOLVED' ? 'border-green-500 text-green-400' : 'border-yellow-500 text-yellow-400'
-                        }`}>{inc.status}</span>
-                    </td>
-                    <td className="p-4">
-                      <button onClick={() => handleDeleteIncident(inc._id)} className="text-red-500 hover:text-red-400 hover:bg-red-900/30 p-2 rounded transition">
-                        <FaTrash />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div>
+              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-purple-400 to-pink-500">
+                Super Admin Console
+              </h1>
+              <p className="text-gray-400">System Overview & Management</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 mt-4 md:mt-0">
+            <button 
+                onClick={() => setIsSettingsOpen(true)}
+                className="bg-gray-700 hover:bg-gray-600 text-gray-300 p-3 rounded-xl transition border border-gray-600 shadow-sm flex items-center justify-center"
+                title="Profile Settings"
+            >
+                <FaCog size={20} />
+            </button>
+            <button onClick={handleLogout} className="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-xl font-bold transition">
+              Logout
+            </button>
           </div>
         </div>
-      )}
 
-      {/* 5. ANNOUNCEMENTS TAB */}
-      {activeTab === "announcements" && (
-        <div className="max-w-3xl mx-auto bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 animate-fade-in">
-            <div className="flex items-center gap-3 mb-6 text-yellow-500 border-b border-gray-700 pb-4">
-                <FaBullhorn size={24} />
-                <h2 className="text-2xl font-bold text-white">Broadcast Announcement</h2>
-            </div>
-            
-            <form onSubmit={handlePostAnnouncement} className="space-y-6">
-                <div>
-                    <label className="block text-sm text-gray-400 mb-2 font-semibold">Announcement Title</label>
-                    <input 
-                        className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-yellow-500 outline-none transition"
-                        placeholder="e.g., Scheduled Power Maintenance"
-                        value={announcement.title}
-                        onChange={(e) => setAnnouncement({...announcement, title: e.target.value})}
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm text-gray-400 mb-2 font-semibold">Priority Level</label>
-                    <select 
-                        className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-yellow-500 outline-none transition"
-                        value={announcement.priority}
-                        onChange={(e) => setAnnouncement({...announcement, priority: e.target.value})}
-                    >
-                        <option value="Normal">Normal (Info)</option>
-                        <option value="High">High (Warning)</option>
-                        <option value="Critical">Critical (Emergency)</option>
-                    </select>
-                </div>
-                <div>
-                    <label className="block text-sm text-gray-400 mb-2 font-semibold">Message Content</label>
-                    <textarea 
-                        className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white h-32 focus:border-yellow-500 outline-none transition"
-                        placeholder="Type your message here..."
-                        value={announcement.message}
-                        onChange={(e) => setAnnouncement({...announcement, message: e.target.value})}
-                        required
-                    />
-                </div>
-                <button className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold py-3 rounded-lg transition shadow-lg hover:shadow-yellow-500/50">
-                    Send Broadcast to All Users
-                </button>
-            </form>
+        {/* TABS */}
+        <div className="flex gap-4 border-b border-gray-700 pb-2 overflow-x-auto whitespace-nowrap">
+          {['overview', 'users', 'incidents', 'broadcast'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 font-bold capitalize transition ${
+                activeTab === tab ? 'text-purple-400 border-b-2 border-purple-400' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {tab === 'broadcast' ? 'Broadcast & Announce' : tab}
+            </button>
+          ))}
         </div>
-      )}
 
+        {/* TAB CONTENT */}
+        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-xl min-h-125">
+          
+          {activeTab === 'overview' && (
+            <div className="space-y-8 animate-fade-in">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Users Chart */}
+                <div className="bg-gray-900 p-6 rounded-xl border border-gray-700">
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><FaUsers /> Users by Role</h3>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={userRoleData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} dataKey="value" label>
+                          {userRoleData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                        </Pie>
+                        <RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Incidents Chart */}
+                <div className="bg-gray-900 p-6 rounded-xl border border-gray-700">
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><FaChartPie /> Incidents by Status</h3>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={incidentStatusData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                        <XAxis dataKey="name" stroke="#9ca3af" />
+                        <YAxis stroke="#9ca3af" />
+                        <RechartsTooltip cursor={{fill: '#374151', opacity: 0.4}} contentStyle={{ backgroundColor: '#1f2937', border: 'none' }} />
+                        <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'users' && (
+            <div className="animate-fade-in overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-gray-900 text-gray-400">
+                  <tr>
+                    <th className="p-4">Name</th>
+                    <th className="p-4">Email</th>
+                    <th className="p-4">Role</th>
+                    <th className="p-4">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {usersList.map(u => (
+                    <tr key={u._id} className="hover:bg-gray-750">
+                      <td className="p-4">{u.name}</td>
+                      <td className="p-4 text-gray-400">{u.email}</td>
+                      <td className="p-4">
+                        <span className="bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-xs font-bold">{u.role}</span>
+                      </td>
+                      <td className="p-4">
+                        <button onClick={() => handleDeleteUser(u._id)} className="text-red-500 hover:text-red-400" title="Delete User">
+                          <FaTrash />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {activeTab === 'incidents' && (
+            <div className="animate-fade-in overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-gray-900 text-gray-400">
+                  <tr>
+                    <th className="p-4">Title</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4">Priority</th>
+                    <th className="p-4">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {incidentsList.map(inc => (
+                    <tr key={inc._id} className="hover:bg-gray-750">
+                      <td className="p-4 font-semibold">{inc.title}</td>
+                      <td className="p-4">{inc.status}</td>
+                      <td className="p-4">{inc.priority}</td>
+                      <td className="p-4">
+                        <button onClick={() => handleDeleteIncident(inc._id)} className="text-red-500 hover:text-red-400" title="Delete Incident">
+                          <FaTrash />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {activeTab === 'broadcast' && (
+            <div className="max-w-2xl mx-auto animate-fade-in">
+              <div className="bg-gray-900 p-8 rounded-xl border border-gray-700 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-2 bg-linear-to-b from-purple-500 to-pink-500 h-full"></div>
+                <h2 className="text-2xl font-bold mb-6 flex items-center gap-3"><FaBullhorn className="text-purple-400"/> New Broadcast</h2>
+                
+                <form onSubmit={handleBroadcast} className="space-y-6">
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">Announcement Title</label>
+                    <input type="text" required value={broadcastData.title} onChange={e => setBroadcastData({...broadcastData, title: e.target.value})} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-purple-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">Message</label>
+                    <textarea required rows="4" value={broadcastData.message} onChange={e => setBroadcastData({...broadcastData, message: e.target.value})} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-purple-500 outline-none" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Priority Level</label>
+                      <select value={broadcastData.priority} onChange={e => setBroadcastData({...broadcastData, priority: e.target.value})} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white outline-none">
+                        <option value="Normal">Normal</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Target Audience</label>
+                      <select value={broadcastData.audience} onChange={e => setBroadcastData({...broadcastData, audience: e.target.value, targetDepartment: ''})} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white outline-none">
+                        <option value="All">All Users</option>
+                        <option value="Student">Students Only</option>
+                        <option value="Faculty">Faculty Only</option>
+                        <option value="Maintenance">All Maintenance / Security</option>
+                        <option value="Department">Specific Department</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {broadcastData.audience === 'Department' && (
+                    <div className="animate-fade-in">
+                      <label className="block text-gray-400 text-sm mb-2">Select Department</label>
+                      <select required value={broadcastData.targetDepartment} onChange={e => setBroadcastData({...broadcastData, targetDepartment: e.target.value})} className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white outline-none focus:border-purple-500">
+                        <option value="">-- Choose a Department --</option>
+                        {departments.map(d => (
+                            <option key={d._id} value={d._id}>{d.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <button type="submit" disabled={isBroadcasting} className="w-full py-4 bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg font-bold shadow-lg shadow-purple-500/25 transition disabled:opacity-50 text-lg">
+                    {isBroadcasting ? 'Broadcasting...' : 'Broadcast Message'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Announcements Table */}
+              <div className="mt-8 bg-gray-900 rounded-xl border border-gray-700 overflow-hidden shadow-2xl">
+                <div className="p-4 border-b border-gray-700 bg-gray-800">
+                  <h3 className="text-lg font-bold">Active Broadcasts</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="text-gray-400 text-sm">
+                      <tr>
+                        <th className="p-4">Title</th>
+                        <th className="p-4">Priority</th>
+                        <th className="p-4">Audience</th>
+                        <th className="p-4">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700">
+                      {announcementsList.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" className="p-8 text-center text-gray-500">No active broadcasts.</td>
+                        </tr>
+                      ) : (
+                        announcementsList.map(a => (
+                          <tr key={a._id} className="hover:bg-gray-750">
+                            <td className="p-4 font-semibold">{a.title}</td>
+                            <td className="p-4">
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                a.priority === 'Critical' ? 'bg-red-500/20 text-red-500' :
+                                a.priority === 'High' ? 'bg-orange-500/20 text-orange-500' :
+                                'bg-blue-500/20 text-blue-500'
+                              }`}>
+                                {a.priority}
+                              </span>
+                            </td>
+                            <td className="p-4">{a.audience}</td>
+                            <td className="p-4">
+                              <button onClick={() => handleDeleteAnnouncement(a._id)} className="text-red-500 hover:text-red-400" title="Delete Broadcast">
+                                <FaTrash />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+        </div>
+      </div>
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+          <ProfileSettingsModal onClose={() => setIsSettingsOpen(false)} />
+      )}
     </div>
   );
 };

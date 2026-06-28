@@ -67,7 +67,7 @@ const ReportIncidentForm = ({ onSuccess, onClose }) => {
     data.append("latitude", location.lat);
     data.append("longitude", location.long);
     if (image) {
-      data.append("image", image); // Match the field name expected by Multer
+      data.append("beforeFix", image); // Match the field name expected by Multer
     }
 
     try {

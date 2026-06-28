@@ -95,7 +95,7 @@ const PanicButton = ({ onPanicSuccess }) => {
                 <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-gray-900 border-2 border-red-600 rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-pulse-glow text-center relative overflow-hidden">
                         
-                        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-600 via-orange-500 to-red-600 animate-pulse"></div>
+                        <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-red-600 via-orange-500 to-red-600 animate-pulse"></div>
 
                         <FaExclamationTriangle className="text-red-500 text-6xl mx-auto mb-4 animate-bounce" />
                         
